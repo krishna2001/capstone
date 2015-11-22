@@ -1,0 +1,101 @@
+
+
+**Practical Machine Learning  -  Course Project**
+
+*Kris Rao*
+
+
+**Loading and Preprocessing the Data**
+
+```{r read data, echo=TRUE}
+library(knitr)
+library(caret)
+library(ggplot2)
+pmltrain<-read.csv("C:/Users/kris/Documents/pmltrain.csv")
+pmltest<-read.csv("C:/Users/kris/Documents/pmltest.csv")
+str(pmltest)
+```
+
+*We notice that many of the variables have all NA values in the test set.  We will identify and remove those variables from both the test and training sets as they will not assist in the prediction of values for the test set.  This will help from a data compression standpoint.*
+
+```{r remove all NA variables from test and train sets}
+pmltest2<-pmltest[,which(unlist(lapply(pmltest, function(x)!all(is.na(x)))))]
+pmltrain2<-pmltrain[,which(unlist(lapply(pmltest, function(x)!all(is.na(x)))))]
+str(pmltrain2)
+```
+
+*We have now reduced to 60 variables with relevant values in the test set, from an initial total of 160.*
+
+*We now want to remove the index variable x, which will not assist us.*
+
+```{r remove index variable}
+pmltest2<-pmltest2[,-1]
+pmltrain2<-pmltrain2[,-1]
+```
+
+
+*Next, we will separate the new truncated training set into a train and test section, so that we can do cross validation on our model down the road.*
+
+
+```{r separate new training set into test and train}
+set.seed <- 104729
+temp <- createDataPartition(y = pmltrain2$classe, p=0.7, list = FALSE)
+newtrain <- pmltrain2[ temp,]
+newtest  <- pmltrain2[-temp,]
+rm(temp)
+```
+
+
+
+**Building a Model**
+
+*Now we build the model.  We will begin by trying a random forest model.  We can not use a logistic regression model here without using dummy variables because there are 5 possible outcomes.  Random Forest models are very accurate, but run the risk of requiring significant computing time.  We will set the mtry variable to 10, meaning that we will try 10 variables selected at random as candidates at each split, in order to reduce computing time.*
+
+```{r building the model}
+
+modfit<-train(classe ~ ., data = newtrain, method = "rf", tuneGrid=data.frame(mtry=10))
+print(modfit$finalModel)
+```
+
+*We see that performance was quite good, with accuracy of 99.75%.  The estimate of out-of-sample, or out-of-bag in the case of a random forest model, is 0.1%*
+
+
+*We now attempt to cross validate our results against our testing set that we retained (note:  this is not the overall test set for the problem).*
+
+```{r cross validation}
+predtest<-predict(modfit,newdata=newtest)
+confusionMatrix(predtest,newtest$classe)
+
+```
+
+*We see that our model performed very well on that test set, with accuracy of 99.9%.  Let's examine with a plot where the incorrect values were.*
+
+```{r graph missing values}
+newtest$predright<-predtest==newtest$classe
+qplot(classe, magnet_forearm_y,  data=newtest, main="Newtest Frequencies", color=newtest$predright)
+
+```
+
+*Unfortunately, there are so few wrong values, we can't effectively see them.*
+
+*Because our model appears to be good, let's apply it to the true test values and get our 20 predicted answers.*
+
+
+```{r calculate predictions for original test set}
+predict(modfit, newdata=pmltest2)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
